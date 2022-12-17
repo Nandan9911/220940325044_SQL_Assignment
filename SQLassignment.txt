@@ -1,0 +1,135 @@
+1. What is the difference between truncate, delete, drop?
+
+Solution:
+
+Truncate : It is a DDL command is used to delete all records of a database table and also release the memory held for the records, 
+           without deleting the table schema, in SQL.
+
+Delete   : It is a DML command, used to either delete all records of a table or delete specific rows through a filtering condition.
+
+Drop     : It is a DDL command, which is used to delete an object created in an RDBMS. Objects are permanent entities 
+           that persist after the session is closed, and can only be created using CREATE command. They can be tables, 
+           views, procedures, triggers etc. When we drop a table, the entire data along with the table schema is deleted.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+2. What are aliases in MySQL?
+
+Solution: An alias in SQL is used to give either a table,a column in a table,a view, a subquery table etc a name/label through which it can be referred. 
+          In case of subquery table, the alias can be used only within that outer and inner query, as subquery table is not a permanent object.
+          
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3. How do you display even rows of any table?
+
+Solution: 
+
+Referring the "salaries" table of the open-source "employees" database for designing the solution.
+
+Schema:
+
++-----------+------+------+-----+---------+-------+
+| Field     | Type | Null | Key | Default | Extra |
++-----------+------+------+-----+---------+-------+
+| emp_no    | int  | NO   | PRI | NULL    |       |
+| salary    | int  | NO   |     | NULL    |       |
+| from_date | date | NO   | PRI | NULL    |       |
+| to_date   | date | NO   |     | NULL    |       |
++-----------+------+------+-----+---------+-------+
+
+emp_no     : employee id [Here, the same employee(emp_no) can have multiple salary values
+             over different time periods.]
+from_date  : starting date of given salary
+to_date    : ending date of given salary
+salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
+
+
+Query
+------
+
+set @row_num = 0; 
+select emp_no,salary from (select @row_num := @row_num + 1 as row_num, emp_no,salary from salaries) temp where mod(temp.row_num, 2) = 0;
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4. How can you remove duplicates from a table(distinct and other way)
+
+Solution:
+
+Referring the "salaries" table of the open-source "employees" database for designing the solution.
+
+Schema:
+
++-----------+------+------+-----+---------+-------+
+| Field     | Type | Null | Key | Default | Extra |
++-----------+------+------+-----+---------+-------+
+| emp_no    | int  | NO   | PRI | NULL    |       |
+| salary    | int  | NO   |     | NULL    |       |
+| from_date | date | NO   | PRI | NULL    |       |
+| to_date   | date | NO   |     | NULL    |       |
++-----------+------+------+-----+---------+-------+
+
+emp_no     : employee id [Here, the same employee(emp_no) can have multiple salary values
+             over different time periods.]
+from_date  : starting date of given salary
+to_date    : ending date of given salary
+salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
+
+
+We will apply the 2 ways over the "salary" column which contains many duplicates.
+
+Using distinct
+--------------
+
+select distinct(salary) from salaries; //returns the list of unique salaries.
+
+Using group by
+--------------
+
+select salary from salaries group by salaries; //returns the list of unique salaries. This solution has lower latency than by using distinct.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+5. How you can find 5th max salary?(Do it by all 3 ways)
+
+Solution:
+
+Referring the "salaries" table of the open-source "employees" database for designing the solution.
+
+Schema:
+
++-----------+------+------+-----+---------+-------+
+| Field     | Type | Null | Key | Default | Extra |
++-----------+------+------+-----+---------+-------+
+| emp_no    | int  | NO   | PRI | NULL    |       |
+| salary    | int  | NO   |     | NULL    |       |
+| from_date | date | NO   | PRI | NULL    |       |
+| to_date   | date | NO   |     | NULL    |       |
++-----------+------+------+-----+---------+-------+
+
+emp_no     : employee id [Here, the same employee(emp_no) can have multiple salary values
+             over different time periods.]
+from_date  : starting date of given salary
+to_date    : ending date of given salary
+salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
+
+
+
+1st way:
+--------
+
+select salary from salaries group by salary order by salary desc limit 4,1;
+
+2nd way:
+--------
+
+select salary from (select salary, dense_rank() over (order by salary desc) sal_rank from salaries group by salary) sal where sal_rank=5;
+
+3rd way:
+--------
+
+select distinct(nth_value(salary,5) over (order by salary desc)) fifth_highest_salary from salaries group by salary limit 1,1;
+
+
+
