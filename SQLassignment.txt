@@ -24,31 +24,39 @@ Solution: An alias in SQL is used to give either a table,a column in a table,a v
 
 Solution: 
 
-Referring the "salaries" table of the open-source "employees" database for designing the solution.
+Referring the "employees" table of the open-source "employees" database for designing the solution.
 
 Schema:
 
-+-----------+------+------+-----+---------+-------+
-| Field     | Type | Null | Key | Default | Extra |
-+-----------+------+------+-----+---------+-------+
-| emp_no    | int  | NO   | PRI | NULL    |       |
-| salary    | int  | NO   |     | NULL    |       |
-| from_date | date | NO   | PRI | NULL    |       |
-| to_date   | date | NO   |     | NULL    |       |
-+-----------+------+------+-----+---------+-------+
++------------+---------------+------+-----+---------+-------+
+| Field      | Type          | Null | Key | Default | Extra |
++------------+---------------+------+-----+---------+-------+
+| emp_no     | int           | NO   | PRI | NULL    |       |
+| birth_date | date          | NO   |     | NULL    |       |
+| first_name | varchar(14)   | NO   |     | NULL    |       |
+| last_name  | varchar(16)   | NO   |     | NULL    |       |
+| gender     | enum('M','F') | NO   |     | NULL    |       |
+| hire_date  | date          | NO   |     | NULL    |       |
++------------+---------------+------+-----+---------+-------+
 
-emp_no     : employee id [Here, the same employee(emp_no) can have multiple salary values
-             over different time periods.]
-from_date  : starting date of given salary
-to_date    : ending date of given salary
-salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
+Here, "emp_no" is the primary key, hence we will be opertaing on this column to get the row numbers.
 
 
-Query
-------
+Query using temporary variable:
+-------------------------------
 
 set @row_num = 0; 
-select emp_no,salary from (select @row_num := @row_num + 1 as row_num, emp_no,salary from salaries) temp where mod(temp.row_num, 2) = 0;
+select emp_no,salary from 
+(select @row_num := @row_num + 1 as row_num, 
+ emp_no, birth_date, first_name, last_name, gender, hire_date from employees) emp where mod(row_num, 2) = 0;
+
+Query using row_number() windows function:
+------------------------------------------
+
+select emp_no, birth_date, first_name, last_name, gender, hire_date 
+from 
+(select emp_no, birth_date, first_name, last_name, gender, hire_date, row_number() over (partition by emp_no) as row_num   
+ from employees) emp where mod(row_num,2) = 0;
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -76,17 +84,36 @@ to_date    : ending date of given salary
 salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
 
 
-We will apply the 2 ways over the "salary" column which contains many duplicates.
+We will apply the 3 ways over the "salary" column which contains many duplicates.
 
 Using distinct
 --------------
 
-select distinct(salary) from salaries; //returns the list of unique salaries.
+1. create table salary_new like salaries;
+2. insert into salary_new 
+   select emp_no,distinct(salary),from_date,to_date from salaries;
+3. drop table salaries;
+4. alter table salary_new rename to salaries;
 
 Using group by
 --------------
 
-select salary from salaries group by salaries; //returns the list of unique salaries. This solution has lower latency than by using distinct.
+1. create table salary_new like salaries;
+2. insert into salary_new 
+   select emp_no,salary,from_date,to_date from salaries group by salaries;
+3. drop table salaries;
+4. alter table salary_new rename to salaries;
+
+Using row_number() windows fucntion:
+-------------------------------------
+
+1. create table salary_new like salaries;
+2. insert into salary_new 
+   select emp_no, salary, from_date, to_date from 
+   (select emp_no, salary, from_date, to_date, row_number() over (partition by salary) as row_num   
+   from salaries) where row_num=1;
+3. drop table salaries;
+4. alter table salary_new rename to salaries;
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -115,21 +142,22 @@ to_date    : ending date of given salary
 salary     : the salary held by employee with id:<emp_id> between date:<from_date> and date:<to_date>
 
 
-
 1st way:
 --------
 
-select salary from salaries group by salary order by salary desc limit 4,1;
+select distinct(salary) from salaries order by salary desc limit 4,1;
 
 2nd way:
 --------
 
-select salary from (select salary, dense_rank() over (order by salary desc) sal_rank from salaries group by salary) sal where sal_rank=5;
+select salary from salaries group by salary order by salary desc limit 4,1;
 
 3rd way:
 --------
 
+select salary from (select salary, dense_rank() over (order by salary desc) sal_rank from salaries group by salary) sal where sal_rank=5;
+
+4th way:
+--------
+
 select distinct(nth_value(salary,5) over (order by salary desc)) fifth_highest_salary from salaries group by salary limit 1,1;
-
-
-
